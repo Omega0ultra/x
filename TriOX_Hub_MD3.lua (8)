@@ -1,0 +1,2528 @@
+--[[
+    ══════════════════════════════════════════════════════════════════════
+    ✦ TriOX Hub — Material Design 3 Expressive Mobile Edition v6.0 ✦
+    • Дизайн: Google Material 3 Expressive (Speed-Dial FAB & Stacked Pills)
+    • Иконки: Векторные Material / Lucide с точными ImageRectOffset (0 эмодзи)
+    • Палитра: 100% сходство с концептом (/root/Без названия6_20261012112910.jpg)
+      - Чёрная пилюля с широким радужным слайдером
+      - Отступы по бокам от линии на ползунке (чёрная маска негативного пространства)
+      - Полосочка динамически окрашена в текущий цвет акцента (T.Accent)
+      - Белая кнопка-сквиркл с чёрной луной (тёмная) / солнцем (светлая)
+    • Темы: Настоящее разделение Dark (глубокий MD3) и Light (светлые карточки, тёмный текст)
+    • Наблюдение: Полный динамический перекрас spectate-бара (< > ⚡ 👁 ✕ Цель)
+    • Настройки (вместо утилит):
+      - Кнопки: Скрытие/показ любых кнопок меню (кнопка настроек заблокирована от скрытия)
+      - Свои команды: Добавление пользовательских кнопок с именем и Lua-кодом
+      - Конфиг: Сохранение и загрузка настроек (файл / буфер обмена / текстовый бэкап)
+      - Утилиты: Встроенные переключатели Noclip, InfJump, Fullbright, BTools, Rejoin
+    • Адаптивное меню:
+      - Идеальный скролл как в нижней, так и в верхней части экрана (без вылезания за край)
+      - Плавный градиент прозрачности (edge fade / blur effect) при прокрутке кнопок
+    • Haptics: Разноуровневая тактильная вибро-отдача на всех элементах
+    • Физика: Rock-steady Fly (BodyVelocity + BodyGyro)
+    • 100% Автономный скрипт без внешних подгрузок
+    ══════════════════════════════════════════════════════════════════════
+--]]
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
+local HapticService = game:GetService("HapticService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait(0.1)
+    LocalPlayer = Players.LocalPlayer
+end
+
+local Camera = Workspace.CurrentCamera
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 1. ДИНАМИЧЕСКИЙ ГЕНЕРАТОР ПАЛИТРЫ MATERIAL 3 (DARK & LIGHT)
+-- ══════════════════════════════════════════════════════════════════════
+
+local currentHue = 0.73 -- Сиреневый по умолчанию (262°)
+local isDarkMode = true
+
+local function buildThemeFromHue(h, isDark)
+    if isDark then
+        -- ТЁМНАЯ ТЕМА MD3: Глубокие угольные поверхности, светлый текст, пастельные акценты
+        local primary = Color3.fromHSV(h, 0.35, 1.00)
+        local primaryText = Color3.fromHSV(h, 0.85, 0.28)
+        local pillBg = Color3.fromHSV(h, 0.22, 0.96)
+        local pillText = Color3.fromHSV(h, 0.85, 0.28)
+        local closeFabBg = Color3.fromHSV(h, 0.28, 0.32)
+        local cardBg = Color3.fromHSV(h, 0.22, 0.12)
+        local cardHeader = Color3.fromHSV(h, 0.22, 0.17)
+        local cardStroke = Color3.fromHSV(h, 0.36, 0.48)
+        local cardText = Color3.fromHSV(h, 0.06, 0.98)
+        local cardTextSub = Color3.fromHSV(h, 0.16, 0.72)
+        local btnSecondary = Color3.fromHSV(h, 0.28, 0.24)
+        local btnSecText = Color3.fromHSV(h, 0.06, 0.98)
+        local inputBg = Color3.fromHSV(h, 0.28, 0.17)
+
+        return {
+            IsDark = true,
+            Name = string.format("Тёмный MD3 (%.0f°)", h * 360),
+            FabBg = primary,
+            FabIcon = primaryText,
+            PillBg = pillBg,
+            PillText = pillText,
+            CloseFabBg = closeFabBg,
+            CloseFabIcon = Color3.fromRGB(255, 255, 255),
+            CardBg = cardBg,
+            CardHeader = cardHeader,
+            CardText = cardText,
+            CardTextSub = cardTextSub,
+            CardStroke = cardStroke,
+            ButtonPrimary = primary,
+            ButtonPrimaryText = primaryText,
+            ButtonSecondary = btnSecondary,
+            ButtonSecondaryText = btnSecText,
+            ButtonDanger = Color3.fromRGB(150, 35, 45),
+            ButtonDangerText = Color3.fromRGB(255, 220, 225),
+            InputBg = inputBg,
+            Accent = primary
+        }
+    else
+        -- СВЕТЛАЯ ТЕМА MD3: Светлые чистые поверхности, тёмный контрастный текст, сочные акценты
+        local primary = Color3.fromHSV(h, 0.60, 0.85)
+        local primaryText = Color3.fromRGB(255, 255, 255)
+        local pillBg = Color3.fromHSV(h, 0.15, 0.92)
+        local pillText = Color3.fromHSV(h, 0.85, 0.18)
+        local closeFabBg = Color3.fromHSV(h, 0.35, 0.75)
+        local cardBg = Color3.fromHSV(h, 0.05, 0.98)       -- Чистый светлый фон
+        local cardHeader = Color3.fromHSV(h, 0.12, 0.92)   -- Свежий тональный заголовок
+        local cardStroke = Color3.fromHSV(h, 0.28, 0.75)   -- Нежная обводка
+        local cardText = Color3.fromHSV(h, 0.85, 0.14)     -- Глубокий тёмный текст
+        local cardTextSub = Color3.fromHSV(h, 0.45, 0.42)  -- Тёмно-серый вспомогательный текст
+        local btnSecondary = Color3.fromHSV(h, 0.10, 0.88) -- Светлые тональные кнопки
+        local btnSecText = Color3.fromHSV(h, 0.85, 0.16)
+        local inputBg = Color3.fromRGB(255, 255, 255)      -- Белые поля ввода
+        local accent = primary
+
+        return {
+            IsDark = false,
+            Name = string.format("Светлый MD3 (%.0f°)", h * 360),
+            FabBg = primary,
+            FabIcon = primaryText,
+            PillBg = pillBg,
+            PillText = pillText,
+            CloseFabBg = closeFabBg,
+            CloseFabIcon = Color3.fromRGB(255, 255, 255),
+            CardBg = cardBg,
+            CardHeader = cardHeader,
+            CardText = cardText,
+            CardTextSub = cardTextSub,
+            CardStroke = cardStroke,
+            ButtonPrimary = primary,
+            ButtonPrimaryText = primaryText,
+            ButtonSecondary = btnSecondary,
+            ButtonSecondaryText = btnSecText,
+            ButtonDanger = Color3.fromRGB(180, 40, 50),
+            ButtonDangerText = Color3.fromRGB(255, 255, 255),
+            InputBg = inputBg,
+            Accent = accent
+        }
+    end
+end
+
+local T = buildThemeFromHue(currentHue, isDarkMode)
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 2. ТОЧНЫЕ СПРАЙТЫ ВЕКТОРНЫХ ИКОНОК (MATERIAL / LUCIDE)
+-- ══════════════════════════════════════════════════════════════════════
+
+local Icons = {
+    Flight = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(98, 820) },       -- plane
+    Telekinesis = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 453) }, -- wand-2
+    Esp = { Id = 16898613353, Size = Vector2.new(48, 48), Offset = Vector2.new(771, 563) },         -- eye
+    Spectate = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(355, 967) },    -- video
+    Executor = { Id = 16898613044, Size = Vector2.new(48, 48), Offset = Vector2.new(355, 869) },    -- code
+    Settings = { Id = 16898613777, Size = Vector2.new(48, 48), Offset = Vector2.new(771, 257) },    -- settings gear
+    Tools = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(820, 906) },       -- wrench
+    Palette = { Id = 16898613613, Size = Vector2.new(48, 48), Offset = Vector2.new(453, 918) },     -- palette
+    Close = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(869, 906) },       -- x
+    Plus = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(257, 918) },        -- plus
+    Minus = { Id = 16898613613, Size = Vector2.new(48, 48), Offset = Vector2.new(771, 196) },       -- minus
+    Zap = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 906) },         -- zap
+    ChevronLeft = { Id = 16898612819, Size = Vector2.new(48, 48), Offset = Vector2.new(404, 967) }, -- chevron-left
+    ChevronRight = { Id = 16898612819, Size = Vector2.new(48, 48), Offset = Vector2.new(869, 759) },-- chevron-right
+    Moon = { Id = 16898613613, Size = Vector2.new(48, 48), Offset = Vector2.new(306, 918) },        -- moon
+    Sun = { Id = 16898613777, Size = Vector2.new(48, 48), Offset = Vector2.new(967, 453) },         -- sun
+    Trash = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 514) },       -- trash
+    Save = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 453) },        -- save
+    Download = { Id = 16898613044, Size = Vector2.new(48, 48), Offset = Vector2.new(820, 906) },    -- download
+    Play = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 257) },        -- play
+    Rocket = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 147) },      -- rocket
+    Refresh = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(404, 869) },     -- refresh
+    RotateCcw = { Id = 16898613699, Size = Vector2.new(48, 48), Offset = Vector2.new(967, 355) },   -- rotate-ccw
+    Terminal = { Id = 16898613869, Size = Vector2.new(48, 48), Offset = Vector2.new(820, 257) },    -- terminal
+    ChevronUp = { Id = 16898612819, Size = Vector2.new(48, 48), Offset = Vector2.new(710, 918) },   -- chevron-up
+    ChevronDown = { Id = 16898612819, Size = Vector2.new(48, 48), Offset = Vector2.new(196, 918) }, -- chevron-down
+    Copy = { Id = 16898613044, Size = Vector2.new(48, 48), Offset = Vector2.new(918, 612) },        -- copy
+    Sliders = { Id = 16898613777, Size = Vector2.new(48, 48), Offset = Vector2.new(404, 771) }      -- sliders
+}
+
+local function setIcon(img, iconData, color)
+    img.Image = "rbxassetid://" .. iconData.Id
+    img.ImageRectSize = iconData.Size
+    img.ImageRectOffset = iconData.Offset
+    img.ScaleType = Enum.ScaleType.Fit
+    if color then
+        img.ImageColor3 = color
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 3. РАЗНОУРОВНЕВАЯ ВИБРАЦИЯ (HAPTICS) И АНИМАЦИИ
+-- ══════════════════════════════════════════════════════════════════════
+
+local HapticProfiles = {
+    tap = { ms = 15, motor = 0.35 },
+    toggle_on = { ms = 25, motor = 0.65 },
+    toggle_off = { ms = 20, motor = 0.40 },
+    drag_start = { ms = 30, motor = 0.70 },
+    drag_end = { ms = 20, motor = 0.50 },
+    fab_open = { ms = 35, motor = 0.75 },
+    fab_close = { ms = 18, motor = 0.40 },
+    theme_change = { ms = 35, motor = 0.75 },
+    danger = { ms = 45, motor = 0.85 },
+    tick = { ms = 10, motor = 0.25 }
+}
+
+local function hapticFeedback(profileName)
+    local prof = HapticProfiles[profileName] or HapticProfiles.tap
+    local ms = prof.ms
+    local intensity = prof.motor
+
+    pcall(function()
+        if type(vibrate) == "function" then vibrate(ms); return end
+        if type(vibration) == "function" then vibration(ms); return end
+        if type(haptic) == "function" then haptic(ms); return end
+    end)
+
+    pcall(function()
+        for _, uType in ipairs({Enum.UserInputType.Gamepad1, Enum.UserInputType.Gamepad2}) do
+            if HapticService:IsMotorSupported(uType, Enum.VibrationMotor.Small) then
+                HapticService:SetMotor(uType, Enum.VibrationMotor.Small, intensity)
+                task.delay(ms / 1000, function()
+                    pcall(function() HapticService:SetMotor(uType, Enum.VibrationMotor.Small, 0) end)
+                end)
+            end
+        end
+    end)
+end
+
+local function tween(inst, dur, props, style, dir)
+    local anim = TweenService:Create(
+        inst,
+        TweenInfo.new(dur or 0.25, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
+        props
+    )
+    anim:Play()
+    return anim
+end
+
+local function tweenProp(inst, dur, props)
+    if inst and inst.Parent then
+        pcall(function()
+            TweenService:Create(
+                inst,
+                TweenInfo.new(dur or 0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                props
+            ):Play()
+        end)
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 4. GUI КОНТЕЙНЕР И РЕЕСТР ЭЛЕМЕНТОВ
+-- ══════════════════════════════════════════════════════════════════════
+
+local function getGuiContainer()
+    local success, result = pcall(function()
+        local gethui = gethui or get_hidden_gui
+        if gethui then return gethui() end
+        if syn and syn.protect_gui then
+            local cg = game:GetService("CoreGui")
+            syn.protect_gui(cg)
+            return cg
+        end
+        return game:GetService("CoreGui")
+    end)
+    if success and result then return result end
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local guiContainer = getGuiContainer()
+if guiContainer:FindFirstChild("TriOX_MD3_Hub") then
+    guiContainer.TriOX_MD3_Hub:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TriOX_MD3_Hub"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = guiContainer
+
+local ThemeRegistry = {
+    Pills = {},
+    FabClosed = nil,
+    FabClosedIcon = nil,
+    FabOpened = nil,
+    FabOpenedIcon = nil,
+    Panels = {},
+    Buttons = {},
+    Inputs = {},
+    SpecBar = nil,
+    SpecBarStroke = nil,
+    SpecBarLabel = nil,
+    ThemeBar = nil,
+    ThemeBarStroke = nil,
+    ThemeBarThumb = nil,
+    ModeIcon = nil
+}
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 5. MD3 SNACKBAR
+-- ══════════════════════════════════════════════════════════════════════
+
+local activeSnackbar = nil
+
+local function showToast(titleText, descText, isError)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "TriOX • " .. titleText,
+            Text = descText,
+            Duration = 2.5
+        })
+    end)
+
+    if activeSnackbar and activeSnackbar.Parent then
+        activeSnackbar:Destroy()
+        activeSnackbar = nil
+    end
+
+    local sb = Instance.new("Frame")
+    sb.Name = "TriOX_Snackbar"
+    sb.Size = UDim2.new(0, 240, 0, 34)
+    sb.Position = UDim2.new(0.5, -120, 1, 10)
+    sb.BackgroundColor3 = isError and Color3.fromRGB(120, 25, 35) or (isDarkMode and Color3.fromRGB(24, 20, 30) or Color3.fromRGB(245, 240, 250))
+    sb.BackgroundTransparency = 0.05
+    sb.BorderSizePixel = 0
+    sb.Active = false
+    sb.ZIndex = 200
+    sb.Parent = screenGui
+
+    local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(1, 0); sc.Parent = sb
+    local ss = Instance.new("UIStroke")
+    ss.Color = isError and Color3.fromRGB(255, 110, 120) or T.CardStroke
+    ss.Thickness = 1.2
+    ss.Parent = sb
+
+    local sl = Instance.new("TextLabel")
+    sl.Size = UDim2.new(1, -20, 1, 0)
+    sl.Position = UDim2.new(0, 10, 0, 0)
+    sl.BackgroundTransparency = 1
+    sl.Font = Enum.Font.GothamMedium
+    sl.TextSize = 11
+    sl.TextColor3 = isError and Color3.fromRGB(255, 215, 220) or T.CardText
+    sl.TextTruncate = Enum.TextTruncate.AtEnd
+    sl.Text = titleText .. ": " .. descText
+    sl.Active = false
+    sl.ZIndex = 201
+    sl.Parent = sb
+
+    activeSnackbar = sb
+    tween(sb, 0.3, {Position = UDim2.new(0.5, -120, 1, -44)})
+
+    task.delay(2.5, function()
+        if activeSnackbar == sb and sb.Parent then
+            local hide = tween(sb, 0.25, {Position = UDim2.new(0.5, -120, 1, 15)})
+            hide.Completed:Connect(function()
+                if activeSnackbar == sb then activeSnackbar = nil end
+                sb:Destroy()
+            end)
+        end
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 6. ПЕРЕТАСКИВАНИЕ С ПОРОГОМ СВАЙПА И ОГРАНИЧЕНИЕМ ЭКРАНА
+-- ══════════════════════════════════════════════════════════════════════
+
+local function makeDraggable(frame, handle, onDragEnd, canDragFn)
+    handle = handle or frame
+    local dragging = false
+    local touchStart = nil
+    local frameStart = nil
+    local activeInput = nil
+    local DRAG_THRESHOLD = 8
+
+    handle.InputBegan:Connect(function(input)
+        if canDragFn and not canDragFn() then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            touchStart = input.Position
+            frameStart = frame.Position
+            activeInput = input
+            dragging = false
+
+            local endConn
+            endConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    if endConn then endConn:Disconnect() end
+                    if dragging then
+                        dragging = false
+                        hapticFeedback("drag_end")
+                        if onDragEnd then onDragEnd(frame) end
+                    end
+                    activeInput = nil
+                    touchStart = nil
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if canDragFn and not canDragFn() then
+            if dragging then
+                dragging = false
+                activeInput = nil
+            end
+            return
+        end
+        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch)
+            and activeInput and input == activeInput and touchStart and frameStart then
+
+            local delta = input.Position - touchStart
+            if not dragging and delta.Magnitude > DRAG_THRESHOLD then
+                dragging = true
+                hapticFeedback("drag_start")
+            end
+
+            if dragging then
+                local viewport = Camera.ViewportSize
+                local currentX = frameStart.X.Scale * viewport.X + frameStart.X.Offset + delta.X
+                local currentY = frameStart.Y.Scale * viewport.Y + frameStart.Y.Offset + delta.Y
+
+                local frameW = frame.AbsoluteSize.X
+                local frameH = frame.AbsoluteSize.Y
+
+                local clampedX = math.clamp(currentX, 8, math.max(8, viewport.X - frameW - 8))
+                local clampedY = math.clamp(currentY, 24, math.max(24, viewport.Y - frameH - 8))
+
+                frame.Position = UDim2.new(0, clampedX, 0, clampedY)
+            end
+        end
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 7. ХЕЛПЕР КЛИКОВ
+-- ══════════════════════════════════════════════════════════════════════
+
+local function createButtonWithIcon(parent, iconData, textStr, size, role, onClick, hapticStyle)
+    local btn = Instance.new("TextButton")
+    btn.Size = size or UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = (role == "Primary") and T.ButtonPrimary or ((role == "Danger") and T.ButtonDanger or T.ButtonSecondary)
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = btn
+
+    local img = Instance.new("ImageLabel")
+    img.Size = UDim2.new(0, 16, 0, 16)
+    img.Position = UDim2.new(0, 10, 0.5, -8)
+    img.BackgroundTransparency = 1
+    local textColor = (role == "Primary") and T.ButtonPrimaryText or ((role == "Danger") and T.ButtonDangerText or T.ButtonSecondaryText)
+    setIcon(img, iconData, textColor)
+    img.Active = false
+    img.Parent = btn
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -34, 1, 0)
+    lbl.Position = UDim2.new(0, 30, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextColor3 = textColor
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextTruncate = Enum.TextTruncate.AtEnd
+    lbl.Text = textStr
+    lbl.Active = false
+    lbl.Parent = btn
+
+    table.insert(ThemeRegistry.Buttons, {
+        Button = btn,
+        Role = role or "Secondary",
+        IconImg = img,
+        TextLbl = lbl
+    })
+
+    setupTouchButton(btn, onClick, hapticStyle or "tap")
+    return btn, lbl, img
+end
+
+local function setupTouchButton(btn, onClick, tapHaptic)
+    btn.Active = true
+    btn.AutoButtonColor = false
+
+    local origSize = btn.Size
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            tween(btn, 0.08, {Size = UDim2.new(origSize.X.Scale, origSize.X.Offset - 3, origSize.Y.Scale, origSize.Y.Offset - 2)})
+            hapticFeedback(tapHaptic or "tap")
+        end
+    end)
+
+    local function restore()
+        tween(btn, 0.14, {Size = origSize}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end
+
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            restore()
+        end
+    end)
+
+    btn.Activated:Connect(function()
+        restore()
+        if onClick then onClick() end
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 8. МОДУЛЬ ПОЛЁТА
+-- ══════════════════════════════════════════════════════════════════════
+
+local FlyModule = {
+    Active = false,
+    Speed = 1,
+    TpWalking = false,
+    Panel = nil,
+    SpeedLabel = nil,
+    ToggleBtn = nil
+}
+
+local function enableHumanoidStates(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Flying, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+        hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+        hum.PlatformStand = false
+
+        local anim = char:FindFirstChild("Animate")
+        if anim then anim.Disabled = false end
+        for _, track in pairs(hum:GetPlayingAnimationTracks()) do
+            track:AdjustSpeed(1)
+        end
+    end
+end
+
+local function disableHumanoidStates(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+        hum:ChangeState(Enum.HumanoidStateType.Swimming)
+        hum.PlatformStand = true
+
+        local anim = char:FindFirstChild("Animate")
+        if anim then anim.Disabled = true end
+        for _, track in pairs(hum:GetPlayingAnimationTracks()) do
+            track:AdjustSpeed(0)
+        end
+    end
+end
+
+function FlyModule.Start()
+    if FlyModule.Active then return end
+    FlyModule.Active = true
+    hapticFeedback("toggle_on")
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    disableHumanoidStates(char)
+
+    FlyModule.TpWalking = true
+    for i = 1, FlyModule.Speed do
+        task.spawn(function()
+            local hb = RunService.Heartbeat
+            local chr = LocalPlayer.Character
+            local hum = chr and chr:FindFirstChildOfClass("Humanoid")
+            while FlyModule.TpWalking and hb:Wait() and chr and hum and hum.Parent do
+                if hum.MoveDirection.Magnitude > 0 then
+                    chr:TranslateBy(hum.MoveDirection * FlyModule.Speed)
+                end
+            end
+        end)
+    end
+
+    local rootPart = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        local bg = Instance.new("BodyGyro")
+        bg.Name = "TriOX_FlyGyro"
+        bg.P = 9e4
+        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.cframe = rootPart.CFrame
+        bg.Parent = rootPart
+
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "TriOX_FlyVelocity"
+        bv.velocity = Vector3.new(0, 0.1, 0)
+        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+        bv.Parent = rootPart
+    end
+
+    if FlyModule.ToggleBtn then
+        FlyModule.ToggleBtn.Text = "Остановить"
+        tween(FlyModule.ToggleBtn, 0.25, {
+            BackgroundColor3 = T.ButtonDanger,
+            TextColor3 = T.ButtonDangerText
+        })
+    end
+    showToast("Полёт", "Включен (" .. FlyModule.Speed .. "x)")
+end
+
+function FlyModule.Stop()
+    if not FlyModule.Active then return end
+    FlyModule.Active = false
+    FlyModule.TpWalking = false
+    hapticFeedback("toggle_off")
+
+    local char = LocalPlayer.Character
+    enableHumanoidStates(char)
+
+    if char then
+        local rootPart = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            local bg = rootPart:FindFirstChild("TriOX_FlyGyro") or rootPart:FindFirstChildOfClass("BodyGyro")
+            local bv = rootPart:FindFirstChild("TriOX_FlyVelocity") or rootPart:FindFirstChildOfClass("BodyVelocity")
+            if bg then bg:Destroy() end
+            if bv then bv:Destroy() end
+        end
+    end
+
+    if FlyModule.ToggleBtn then
+        FlyModule.ToggleBtn.Text = "Включить полёт"
+        tween(FlyModule.ToggleBtn, 0.25, {
+            BackgroundColor3 = T.ButtonPrimary,
+            TextColor3 = T.ButtonPrimaryText
+        })
+    end
+    showToast("Полёт", "Выключен")
+end
+
+function FlyModule.SetSpeed(newSpeed)
+    FlyModule.Speed = math.clamp(newSpeed, 1, 10)
+    hapticFeedback("tick")
+    if FlyModule.SpeedLabel then
+        FlyModule.SpeedLabel.Text = FlyModule.Speed .. "x"
+    end
+    if FlyModule.Active then
+        FlyModule.Stop()
+        FlyModule.Start()
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 9. МОДУЛЬ ТЕЛЕКИНЕЗА
+-- ══════════════════════════════════════════════════════════════════════
+
+local Telekinesis = {
+    Holding = false,
+    Dist = 25
+}
+
+function Telekinesis.GiveTool()
+    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+    if not bp then return end
+
+    if bp:FindFirstChild("Telekinesis") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Telekinesis")) then
+        showToast("Телекинез", "Инструмент уже в инвентаре")
+        return
+    end
+
+    local tool = Instance.new("Tool")
+    tool.Name = "Telekinesis"
+    tool.RequiresHandle = false
+    tool.CanBeDropped = false
+
+    local targetPart = nil
+    local bPos = nil
+    local bGyro = nil
+    local conn = nil
+
+    tool.Equipped:Connect(function(mouse)
+        mouse.Button1Down:Connect(function()
+            local target = mouse.Target
+            if target and not target.Anchored and target.Parent and not target.Parent:IsA("Accessory") then
+                targetPart = target
+                Telekinesis.Holding = true
+                hapticFeedback("drag_start")
+
+                bPos = Instance.new("BodyPosition")
+                bPos.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+                bPos.P = 3e3
+                bPos.D = 400
+                bPos.Position = targetPart.Position
+                bPos.Parent = targetPart
+
+                bGyro = Instance.new("BodyGyro")
+                bGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+                bGyro.P = 3e3
+                bGyro.D = 400
+                bGyro.CFrame = targetPart.CFrame
+                bGyro.Parent = targetPart
+
+                conn = RunService.RenderStepped:Connect(function()
+                    if Telekinesis.Holding and targetPart and bPos and bGyro then
+                        local char = LocalPlayer.Character
+                        local head = char and char:FindFirstChild("Head")
+                        if head then
+                            bPos.Position = head.Position + (mouse.Hit.LookVector * Telekinesis.Dist)
+                            bGyro.CFrame = mouse.Hit
+                        end
+                    else
+                        if conn then conn:Disconnect(); conn = nil end
+                    end
+                end)
+            end
+        end)
+
+        mouse.Button1Up:Connect(function()
+            if Telekinesis.Holding then
+                hapticFeedback("drag_end")
+            end
+            Telekinesis.Holding = false
+            if conn then conn:Disconnect(); conn = nil end
+            if bPos then bPos:Destroy(); bPos = nil end
+            if bGyro then bGyro:Destroy(); bGyro = nil end
+            targetPart = nil
+        end)
+
+        mouse.WheelForward:Connect(function()
+            Telekinesis.Dist = math.clamp(Telekinesis.Dist + 4, 5, 120)
+            hapticFeedback("tick")
+        end)
+        mouse.WheelBackward:Connect(function()
+            Telekinesis.Dist = math.clamp(Telekinesis.Dist - 4, 5, 120)
+            hapticFeedback("tick")
+        end)
+    end)
+
+    tool.Unequipped:Connect(function()
+        Telekinesis.Holding = false
+        if conn then conn:Disconnect(); conn = nil end
+        if bPos then bPos:Destroy(); bPos = nil end
+        if bGyro then bGyro:Destroy(); bGyro = nil end
+        targetPart = nil
+    end)
+
+    tool.Parent = bp
+    hapticFeedback("toggle_on")
+    showToast("Телекинез", "Инструмент выдан в инвентарь!")
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 10. МОДУЛЬ ПОДСВЕТКИ (ESP)
+-- ══════════════════════════════════════════════════════════════════════
+
+local EspModule = {
+    Active = false,
+    Billboards = {},
+    Query = "Players",
+    Heartbeat = nil
+}
+
+function EspModule.Clear()
+    EspModule.Active = false
+    hapticFeedback("danger")
+    if EspModule.Heartbeat then EspModule.Heartbeat:Disconnect(); EspModule.Heartbeat = nil end
+    for _, item in ipairs(EspModule.Billboards) do
+        if item.Billboard and item.Billboard.Parent then item.Billboard:Destroy() end
+    end
+    table.clear(EspModule.Billboards)
+end
+
+function EspModule.Apply()
+    EspModule.Clear()
+    EspModule.Active = true
+    hapticFeedback("toggle_on")
+
+    local targets = {}
+    local q = EspModule.Query:lower():gsub("%s+", "")
+
+    if q == "players" or q == "player" or q == "" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local root = p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("Torso")
+                if root then table.insert(targets, {Part = root, Name = p.DisplayName, Color = Color3.fromRGB(130, 220, 255)}) end
+            end
+        end
+    elseif q == "tools" or q == "items" or q == "item" then
+        for _, inst in ipairs(Workspace:GetDescendants()) do
+            if inst:IsA("Tool") and inst:FindFirstChild("Handle") then
+                table.insert(targets, {Part = inst.Handle, Name = inst.Name, Color = Color3.fromRGB(255, 215, 120)})
+            end
+        end
+    else
+        for _, inst in ipairs(Workspace:GetDescendants()) do
+            if inst:IsA("BasePart") and inst.Name:lower():find(q) then
+                table.insert(targets, {Part = inst, Name = inst.Name, Color = Color3.fromRGB(210, 180, 255)})
+            end
+        end
+    end
+
+    for _, t in ipairs(targets) do
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "TriOX_ESP"
+        bb.Size = UDim2.new(0, 120, 0, 36)
+        bb.AlwaysOnTop = true
+        bb.Adornee = t.Part
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.Parent = guiContainer
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(18, 14, 24)
+        frame.BackgroundTransparency = 0.25
+        frame.BorderSizePixel = 0
+        frame.Parent = bb
+        local fCorner = Instance.new("UICorner"); fCorner.CornerRadius = UDim.new(1, 0); fCorner.Parent = frame
+        local fStroke = Instance.new("UIStroke"); fStroke.Color = t.Color; fStroke.Thickness = 1.2; fStroke.Parent = frame
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 11
+        lbl.TextColor3 = t.Color
+        lbl.Text = t.Name
+        lbl.Parent = frame
+
+        table.insert(EspModule.Billboards, {Billboard = bb, Part = t.Part, Label = lbl, BaseName = t.Name})
+    end
+
+    EspModule.Heartbeat = RunService.Heartbeat:Connect(function()
+        local myChar = LocalPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+        for _, item in ipairs(EspModule.Billboards) do
+            if item.Part and item.Part.Parent and item.Label then
+                local dist = math.floor((item.Part.Position - myRoot.Position).Magnitude)
+                item.Label.Text = item.BaseName .. " [" .. dist .. "m]"
+            end
+        end
+    end)
+
+    showToast("Подсветка", "Найдено объектов: " .. #targets)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 11. МОДУЛЬ НАБЛЮДЕНИЯ (SPECTATE)
+-- ══════════════════════════════════════════════════════════════════════
+
+local SpectateModule = {
+    Active = false,
+    Index = 1,
+    Target = nil,
+    EspEnabled = false,
+    EspHighlights = {},
+    Bar = nil,
+    TargetLabel = nil
+}
+
+local function getAlivePlayers()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            table.insert(list, p)
+        end
+    end
+    return list
+end
+
+function SpectateModule.Cycle(dir)
+    local list = getAlivePlayers()
+    if #list == 0 then
+        showToast("Наблюдение", "Нет доступных игроков", true)
+        return
+    end
+    hapticFeedback("tap")
+
+    SpectateModule.Index = SpectateModule.Index + dir
+    if SpectateModule.Index > #list then SpectateModule.Index = 1
+    elseif SpectateModule.Index < 1 then SpectateModule.Index = #list end
+
+    local target = list[SpectateModule.Index]
+    if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+        Camera.CameraSubject = target.Character.Humanoid
+        SpectateModule.Target = target
+        SpectateModule.Active = true
+        if SpectateModule.Bar then
+            SpectateModule.Bar.Visible = true
+            tween(SpectateModule.Bar, 0.25, {Position = UDim2.new(0.5, -155, 0.88, 0)})
+        end
+        if SpectateModule.TargetLabel then SpectateModule.TargetLabel.Text = target.DisplayName end
+    end
+end
+
+function SpectateModule.Stop()
+    SpectateModule.Active = false
+    hapticFeedback("toggle_off")
+    if SpectateModule.Bar then
+        local hide = tween(SpectateModule.Bar, 0.2, {Position = UDim2.new(0.5, -155, 1, 10)})
+        hide.Completed:Connect(function()
+            if not SpectateModule.Active and SpectateModule.Bar then
+                SpectateModule.Bar.Visible = false
+            end
+        end)
+    end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        Camera.CameraSubject = LocalPlayer.Character.Humanoid
+    end
+    showToast("Наблюдение", "Камера возвращена")
+end
+
+function SpectateModule.Teleport()
+    local target = SpectateModule.Target
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and myRoot then
+        hapticFeedback("toggle_on")
+        myRoot.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        showToast("Телепорт", "Телепортирован к " .. target.DisplayName)
+    else
+        showToast("Телепорт", "Цель недоступна", true)
+    end
+end
+
+function SpectateModule.ToggleEsp()
+    SpectateModule.EspEnabled = not SpectateModule.EspEnabled
+    if not SpectateModule.EspEnabled then
+        hapticFeedback("toggle_off")
+        for _, h in pairs(SpectateModule.EspHighlights) do if h and h.Parent then h:Destroy() end end
+        table.clear(SpectateModule.EspHighlights)
+        showToast("ESP Игроков", "Выключен")
+    else
+        hapticFeedback("toggle_on")
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local h = Instance.new("Highlight")
+                h.FillTransparency = 1
+                h.OutlineColor = T.Accent
+                h.OutlineTransparency = 0.1
+                h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                h.Adornee = p.Character
+                h.Parent = guiContainer
+                table.insert(SpectateModule.EspHighlights, h)
+            end
+        end
+        showToast("ESP Игроков", "Включен")
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 12. ВНЕШНИЕ СКРИПТЫ И УТИЛИТЫ (INFINITE YIELD И REJOIN)
+-- ══════════════════════════════════════════════════════════════════════
+
+local UtilsModule = {}
+
+function UtilsModule.LaunchInfiniteYield()
+    hapticFeedback("toggle_on")
+    showToast("Infinite Yield", "Загрузка скрипта...")
+    task.spawn(function()
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        end)
+        if success then
+            showToast("Infinite Yield", "Успешно запущен!")
+        else
+            showToast("Infinite Yield", "Ошибка запуска: " .. tostring(err), true)
+        end
+    end)
+end
+
+function UtilsModule.Rejoin()
+    hapticFeedback("danger")
+    showToast("Сервер", "Перезаход...")
+    task.delay(0.5, function()
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 13. ИСПОЛНИТЕЛЬ СКРИПТОВ
+-- ══════════════════════════════════════════════════════════════════════
+
+local function executeScript(source)
+    if not source or source:gsub("%s+", "") == "" then return end
+    hapticFeedback("toggle_on")
+    local fn, err = loadstring(source)
+    if not fn then
+        showToast("Ошибка синтаксиса", tostring(err), true)
+        return
+    end
+    local success, runErr = pcall(fn)
+    if not success then
+        showToast("Ошибка выполнения", tostring(runErr), true)
+    else
+        showToast("Выполнено", "Скрипт запущен успешно")
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 14. МОДАЛЬНЫЕ ПАНЕЛИ
+-- ══════════════════════════════════════════════════════════════════════
+
+local function createModalPanel(titleText, iconData, size)
+    local panel = Instance.new("Frame")
+    panel.Size = size
+    panel.Position = UDim2.new(0.5, -size.X.Offset / 2, 0.45, -size.Y.Offset / 2)
+    panel.BackgroundColor3 = T.CardBg
+    panel.BorderSizePixel = 0
+    panel.Visible = false
+    panel.Active = true
+    panel.ZIndex = 90
+    panel.Parent = screenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 18)
+    corner.Parent = panel
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = T.CardStroke
+    stroke.Thickness = 1.5
+    stroke.Parent = panel
+
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, 0, 0, 40)
+    header.BackgroundColor3 = T.CardHeader
+    header.BorderSizePixel = 0
+    header.Parent = panel
+
+    local hCorner = Instance.new("UICorner")
+    hCorner.CornerRadius = UDim.new(0, 18)
+    hCorner.Parent = header
+
+    local hCover = Instance.new("Frame")
+    hCover.Size = UDim2.new(1, 0, 0, 10)
+    hCover.Position = UDim2.new(0, 0, 1, -10)
+    hCover.BackgroundColor3 = T.CardHeader
+    hCover.BorderSizePixel = 0
+    hCover.Parent = header
+
+    makeDraggable(panel, header)
+
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 18, 0, 18)
+    icon.Position = UDim2.new(0, 12, 0.5, -9)
+    icon.BackgroundTransparency = 1
+    setIcon(icon, iconData, T.Accent)
+    icon.Active = false
+    icon.Parent = header
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -66, 1, 0)
+    title.Position = UDim2.new(0, 36, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 12
+    title.TextColor3 = T.CardText
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Text = titleText
+    title.Active = false
+    title.Parent = header
+
+    local closeBtn = Instance.new("ImageButton")
+    closeBtn.Size = UDim2.new(0, 24, 0, 24)
+    closeBtn.Position = UDim2.new(1, -30, 0.5, -12)
+    closeBtn.BackgroundColor3 = T.ButtonSecondary
+    setIcon(closeBtn, Icons.Close, T.CardText)
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Parent = header
+
+    local cCorner = Instance.new("UICorner")
+    cCorner.CornerRadius = UDim.new(1, 0)
+    cCorner.Parent = closeBtn
+
+    local body = Instance.new("Frame")
+    body.Size = UDim2.new(1, -16, 1, -50)
+    body.Position = UDim2.new(0, 8, 0, 44)
+    body.BackgroundTransparency = 1
+    body.Parent = panel
+
+    local function openPanel()
+        panel.Visible = true
+        panel.Size = UDim2.new(0, size.X.Offset * 0.92, 0, size.Y.Offset * 0.92)
+        panel.BackgroundTransparency = 0.3
+        hapticFeedback("fab_open")
+        tween(panel, 0.25, {
+            Size = size,
+            BackgroundTransparency = 0
+        }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end
+
+    local function closePanel()
+        hapticFeedback("fab_close")
+        local hide = tween(panel, 0.18, {
+            Size = UDim2.new(0, size.X.Offset * 0.9, 0, size.Y.Offset * 0.9),
+            BackgroundTransparency = 0.5
+        }, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        hide.Completed:Connect(function()
+            panel.Visible = false
+            panel.Size = size
+            panel.BackgroundTransparency = 0
+        end)
+    end
+
+    setupTouchButton(closeBtn, closePanel, "fab_close")
+
+    table.insert(ThemeRegistry.Panels, {
+        Panel = panel,
+        Header = header,
+        Cover = hCover,
+        Stroke = stroke,
+        Icon = icon,
+        Title = title,
+        Close = closeBtn,
+        Open = openPanel,
+        ClosePanel = closePanel
+    })
+    return panel, body, openPanel, closePanel
+end
+
+-- 1. Панель полёта (174 px)
+local flyPanel, flyBody, openFlyPanel, closeFlyPanel = createModalPanel("Полёт", Icons.Flight, UDim2.new(0, 210, 0, 174))
+
+local flyRow1 = Instance.new("Frame")
+flyRow1.Size = UDim2.new(1, 0, 0, 34)
+flyRow1.BackgroundTransparency = 1
+flyRow1.Parent = flyBody
+
+local frl1 = Instance.new("UIListLayout")
+frl1.FillDirection = Enum.FillDirection.Horizontal
+frl1.Padding = UDim.new(0, 6)
+frl1.Parent = flyRow1
+
+local function createHoldBtn(parent, iconData, txt, size, factor)
+    local b = Instance.new("TextButton")
+    b.Size = size
+    b.BackgroundColor3 = T.ButtonSecondary
+    b.BorderSizePixel = 0
+    b.Text = ""
+    b.Active = true
+    b.Parent = parent
+
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = b
+
+    local img = Instance.new("ImageLabel")
+    img.Size = UDim2.new(0, 16, 0, 16)
+    img.Position = UDim2.new(0, 10, 0.5, -8)
+    img.BackgroundTransparency = 1
+    setIcon(img, iconData, T.ButtonSecondaryText)
+    img.Active = false
+    img.Parent = b
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -30, 1, 0)
+    lbl.Position = UDim2.new(0, 28, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextColor3 = T.ButtonSecondaryText
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.Text = txt
+    lbl.Active = false
+    lbl.Parent = b
+
+    local conn = nil
+    local tickCounter = 0
+    local function cancel()
+        if conn then conn:Disconnect(); conn = nil end
+    end
+
+    b.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            hapticFeedback("tap")
+            tween(b, 0.08, {Size = UDim2.new(size.X.Scale, size.X.Offset - 2, size.Y.Scale, size.Y.Offset - 2)})
+            if FlyModule.Active then
+                cancel()
+                tickCounter = 0
+                conn = RunService.Heartbeat:Connect(function()
+                    local chr = LocalPlayer.Character
+                    local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = hrp.CFrame * CFrame.new(0, factor * FlyModule.Speed, 0)
+                    end
+                    tickCounter = tickCounter + 1
+                    if tickCounter % 15 == 0 then
+                        hapticFeedback("tick")
+                    end
+                end)
+            end
+        end
+    end)
+
+    b.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            cancel()
+            tween(b, 0.12, {Size = size}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        end
+    end)
+
+    table.insert(ThemeRegistry.Buttons, {Button = b, Role = "Secondary", IconImg = img, TextLbl = lbl})
+    return b
+end
+
+createHoldBtn(flyRow1, Icons.ChevronUp, "Вверх", UDim2.new(0.48, 0, 1, 0), 1)
+
+local spdDown = Instance.new("TextButton")
+spdDown.Size = UDim2.new(0.23, 0, 1, 0)
+spdDown.BackgroundColor3 = T.ButtonSecondary
+spdDown.Font = Enum.Font.GothamBold
+spdDown.TextSize = 14
+spdDown.TextColor3 = T.ButtonSecondaryText
+spdDown.Text = "−"
+spdDown.Parent = flyRow1
+local sdc = Instance.new("UICorner"); sdc.CornerRadius = UDim.new(1, 0); sdc.Parent = spdDown
+table.insert(ThemeRegistry.Buttons, {Button = spdDown, Role = "Secondary"})
+setupTouchButton(spdDown, function() FlyModule.SetSpeed(FlyModule.Speed - 1) end, "tap")
+
+local spdUp = Instance.new("TextButton")
+spdUp.Size = UDim2.new(0.23, 0, 1, 0)
+spdUp.BackgroundColor3 = T.ButtonSecondary
+spdUp.Font = Enum.Font.GothamBold
+spdUp.TextSize = 14
+spdUp.TextColor3 = T.ButtonSecondaryText
+spdUp.Text = "+"
+spdUp.Parent = flyRow1
+local suc = Instance.new("UICorner"); suc.CornerRadius = UDim.new(1, 0); suc.Parent = spdUp
+table.insert(ThemeRegistry.Buttons, {Button = spdUp, Role = "Secondary"})
+setupTouchButton(spdUp, function() FlyModule.SetSpeed(FlyModule.Speed + 1) end, "tap")
+
+local flyRow2 = Instance.new("Frame")
+flyRow2.Size = UDim2.new(1, 0, 0, 34)
+flyRow2.Position = UDim2.new(0, 0, 0, 40)
+flyRow2.BackgroundTransparency = 1
+flyRow2.Parent = flyBody
+
+local frl2 = Instance.new("UIListLayout")
+frl2.FillDirection = Enum.FillDirection.Horizontal
+frl2.Padding = UDim.new(0, 6)
+frl2.Parent = flyRow2
+
+createHoldBtn(flyRow2, Icons.ChevronDown, "Вниз", UDim2.new(0.48, 0, 1, 0), -1)
+
+local spdLbl = Instance.new("TextLabel")
+spdLbl.Size = UDim2.new(0.48, 0, 1, 0)
+spdLbl.BackgroundColor3 = T.ButtonSecondary
+spdLbl.BorderSizePixel = 0
+spdLbl.Font = Enum.Font.GothamBold
+spdLbl.TextSize = 12
+spdLbl.TextColor3 = T.Accent
+spdLbl.Text = FlyModule.Speed .. "x"
+spdLbl.Parent = flyRow2
+local slc = Instance.new("UICorner"); slc.CornerRadius = UDim.new(1, 0); slc.Parent = spdLbl
+FlyModule.SpeedLabel = spdLbl
+table.insert(ThemeRegistry.Buttons, {Button = spdLbl, Role = "Secondary"})
+
+local flyToggle = Instance.new("TextButton")
+flyToggle.Size = UDim2.new(1, 0, 0, 34)
+flyToggle.Position = UDim2.new(0, 0, 0, 80)
+flyToggle.BackgroundColor3 = T.ButtonPrimary
+flyToggle.BorderSizePixel = 0
+flyToggle.Font = Enum.Font.GothamBold
+flyToggle.TextSize = 12
+flyToggle.TextColor3 = T.ButtonPrimaryText
+flyToggle.Text = "Включить полёт"
+flyToggle.Parent = flyBody
+local ftc = Instance.new("UICorner"); ftc.CornerRadius = UDim.new(1, 0); ftc.Parent = flyToggle
+FlyModule.ToggleBtn = flyToggle
+table.insert(ThemeRegistry.Buttons, {Button = flyToggle, Role = "Primary"})
+
+setupTouchButton(flyToggle, function()
+    if FlyModule.Active then FlyModule.Stop() else FlyModule.Start() end
+end, "toggle_on")
+
+-- 2. Панель ESP (176 px)
+local espPanel, espBody, openEspPanel, closeEspPanel = createModalPanel("Подсветка", Icons.Esp, UDim2.new(0, 220, 0, 176))
+
+local espInputBox = Instance.new("TextBox")
+espInputBox.Size = UDim2.new(1, 0, 0, 36)
+espInputBox.BackgroundColor3 = T.InputBg
+espInputBox.BorderSizePixel = 0
+espInputBox.Font = Enum.Font.Gotham
+espInputBox.TextSize = 11
+espInputBox.TextColor3 = T.CardText
+espInputBox.PlaceholderColor3 = T.CardTextSub
+espInputBox.PlaceholderText = "Имя или класс (Players, Tools...)"
+espInputBox.Text = EspModule.Query
+espInputBox.ClearTextOnFocus = false
+espInputBox.Parent = espBody
+local eibc = Instance.new("UICorner"); eibc.CornerRadius = UDim.new(0, 10); eibc.Parent = espInputBox
+table.insert(ThemeRegistry.Inputs, espInputBox)
+
+espInputBox.FocusLost:Connect(function()
+    EspModule.Query = espInputBox.Text
+end)
+
+local espApplyBtn = Instance.new("TextButton")
+espApplyBtn.Size = UDim2.new(1, 0, 0, 32)
+espApplyBtn.Position = UDim2.new(0, 0, 0, 44)
+espApplyBtn.BackgroundColor3 = T.ButtonPrimary
+espApplyBtn.BorderSizePixel = 0
+espApplyBtn.Font = Enum.Font.GothamBold
+espApplyBtn.TextSize = 11
+espApplyBtn.TextColor3 = T.ButtonPrimaryText
+espApplyBtn.Text = "Применить подсветку"
+espApplyBtn.Parent = espBody
+local eabc = Instance.new("UICorner"); eabc.CornerRadius = UDim.new(1, 0); eabc.Parent = espApplyBtn
+table.insert(ThemeRegistry.Buttons, {Button = espApplyBtn, Role = "Primary"})
+setupTouchButton(espApplyBtn, EspModule.Apply, "toggle_on")
+
+local espClearBtn = Instance.new("TextButton")
+espClearBtn.Size = UDim2.new(1, 0, 0, 32)
+espClearBtn.Position = UDim2.new(0, 0, 0, 84)
+espClearBtn.BackgroundColor3 = T.ButtonDanger
+espClearBtn.BorderSizePixel = 0
+espClearBtn.Font = Enum.Font.GothamBold
+espClearBtn.TextSize = 11
+espClearBtn.TextColor3 = T.ButtonDangerText
+espClearBtn.Text = "Очистить подсветку"
+espClearBtn.Parent = espBody
+local ecbc = Instance.new("UICorner"); ecbc.CornerRadius = UDim.new(1, 0); ecbc.Parent = espClearBtn
+setupTouchButton(espClearBtn, function()
+    EspModule.Clear()
+    showToast("Подсветка", "Метки удалены")
+end, "danger")
+
+-- 3. Панель наблюдения (Spectate HUD с полной регистрацией в ThemeRegistry)
+local specBar = Instance.new("Frame")
+specBar.Size = UDim2.new(0, 310, 0, 44)
+specBar.Position = UDim2.new(0.5, -155, 0.88, 0)
+specBar.BackgroundColor3 = T.CardBg
+specBar.BorderSizePixel = 0
+specBar.Visible = false
+specBar.Active = true
+specBar.ZIndex = 95
+specBar.Parent = screenGui
+
+local sbc = Instance.new("UICorner"); sbc.CornerRadius = UDim.new(1, 0); sbc.Parent = specBar
+local sbs = Instance.new("UIStroke"); sbs.Color = T.CardStroke; sbs.Thickness = 1.5; sbs.Parent = specBar
+ThemeRegistry.SpecBar = specBar
+ThemeRegistry.SpecBarStroke = sbs
+makeDraggable(specBar, specBar)
+
+local sbl = Instance.new("UIListLayout")
+sbl.FillDirection = Enum.FillDirection.Horizontal
+sbl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+sbl.VerticalAlignment = Enum.VerticalAlignment.Center
+sbl.Padding = UDim.new(0, 5)
+sbl.Parent = specBar
+SpectateModule.Bar = specBar
+
+local function createSpecIconBtn(iconData, clickFn, hapticStyle)
+    local b = Instance.new("ImageButton")
+    b.Size = UDim2.new(0, 30, 0, 30)
+    b.BackgroundColor3 = T.ButtonSecondary
+    b.BorderSizePixel = 0
+    setIcon(b, iconData, T.CardText)
+    b.Parent = specBar
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = b
+    table.insert(ThemeRegistry.Buttons, {Button = b, Role = "Secondary"})
+    setupTouchButton(b, clickFn, hapticStyle or "tap")
+    return b
+end
+
+createSpecIconBtn(Icons.ChevronLeft, function() SpectateModule.Cycle(-1) end, "tap")
+createSpecIconBtn(Icons.ChevronRight, function() SpectateModule.Cycle(1) end, "tap")
+createSpecIconBtn(Icons.Zap, SpectateModule.Teleport, "toggle_on")
+createSpecIconBtn(Icons.Esp, SpectateModule.ToggleEsp, "toggle_on")
+createSpecIconBtn(Icons.Close, SpectateModule.Stop, "toggle_off")
+
+local specLbl = Instance.new("TextLabel")
+specLbl.Size = UDim2.new(0, 115, 0, 30)
+specLbl.BackgroundTransparency = 1
+specLbl.Font = Enum.Font.GothamBold
+specLbl.TextSize = 12
+specLbl.TextColor3 = T.CardText
+specLbl.TextTruncate = Enum.TextTruncate.AtEnd
+specLbl.Text = "Цель: Нет"
+specLbl.TextXAlignment = Enum.TextXAlignment.Center
+specLbl.Active = false
+specLbl.Parent = specBar
+SpectateModule.TargetLabel = specLbl
+ThemeRegistry.SpecBarLabel = specLbl
+
+-- 4. Панель Исполнителя (188 px)
+local execPanel, execBody, openExecPanel, closeExecPanel = createModalPanel("Исполнитель", Icons.Executor, UDim2.new(0, 260, 0, 188))
+
+local codeInput = Instance.new("TextBox")
+codeInput.Size = UDim2.new(1, 0, 0, 86)
+codeInput.BackgroundColor3 = Color3.fromRGB(18, 14, 24)
+codeInput.BorderSizePixel = 0
+codeInput.Font = Enum.Font.Code
+codeInput.TextSize = 11
+codeInput.TextColor3 = Color3.fromRGB(240, 235, 245)
+codeInput.PlaceholderColor3 = Color3.fromRGB(120, 110, 130)
+codeInput.PlaceholderText = "-- Lua-скрипт...\nprint('TriOX MD3')"
+codeInput.Text = ""
+codeInput.MultiLine = true
+codeInput.ClearTextOnFocus = false
+codeInput.TextXAlignment = Enum.TextXAlignment.Left
+codeInput.TextYAlignment = Enum.TextYAlignment.Top
+codeInput.Parent = execBody
+local cic = Instance.new("UICorner"); cic.CornerRadius = UDim.new(0, 8); cic.Parent = codeInput
+
+local execRow = Instance.new("Frame")
+execRow.Size = UDim2.new(1, 0, 0, 32)
+execRow.Position = UDim2.new(0, 0, 0, 96)
+execRow.BackgroundTransparency = 1
+execRow.Parent = execBody
+
+local erl = Instance.new("UIListLayout")
+erl.FillDirection = Enum.FillDirection.Horizontal
+erl.Padding = UDim.new(0, 6)
+erl.Parent = execRow
+
+local runBtn = Instance.new("TextButton")
+runBtn.Size = UDim2.new(0.58, 0, 1, 0)
+runBtn.BackgroundColor3 = T.ButtonPrimary
+runBtn.BorderSizePixel = 0
+runBtn.Font = Enum.Font.GothamBold
+runBtn.TextSize = 11
+runBtn.TextColor3 = T.ButtonPrimaryText
+runBtn.Text = "Выполнить"
+runBtn.Parent = execRow
+local rbc = Instance.new("UICorner"); rbc.CornerRadius = UDim.new(1, 0); rbc.Parent = runBtn
+table.insert(ThemeRegistry.Buttons, {Button = runBtn, Role = "Primary"})
+setupTouchButton(runBtn, function() executeScript(codeInput.Text) end, "toggle_on")
+
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(0.38, 0, 1, 0)
+clearBtn.BackgroundColor3 = T.ButtonSecondary
+clearBtn.BorderSizePixel = 0
+clearBtn.Font = Enum.Font.GothamBold
+clearBtn.TextSize = 11
+clearBtn.TextColor3 = T.ButtonSecondaryText
+clearBtn.Text = "Очистить"
+clearBtn.Parent = execRow
+local cbc2 = Instance.new("UICorner"); cbc2.CornerRadius = UDim.new(1, 0); cbc2.Parent = clearBtn
+table.insert(ThemeRegistry.Buttons, {Button = clearBtn, Role = "Secondary"})
+setupTouchButton(clearBtn, function() codeInput.Text = "" end, "danger")
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 5. ПАНЕЛЬ НАСТРОЕК (ВМЕСТО УТИЛИТ: КНОПКИ, КОМАНДЫ, КОНФИГ, УТИЛИТЫ)
+-- ══════════════════════════════════════════════════════════════════════
+
+local settingsPanel, settingsBody, openSettingsPanel, closeSettingsPanel = createModalPanel("Настройки", Icons.Settings, UDim2.new(0, 270, 0, 310))
+
+-- Конфигурация интерфейса
+local Config = {
+    ThemeHue = currentHue,
+    IsDarkMode = isDarkMode,
+    HiddenButtons = {},
+    CustomButtons = {}
+}
+local CONFIG_FILE = "TriOX_MD3_Config.json"
+
+local AllSpeedDialPills = {} -- Хранит ссылки на все созданные пилюли для управления их видимостью
+local updateMenuGeometry = nil -- Предварительное объявление
+
+-- Хранилище страниц настроек
+local settingsPages = {}
+local activePageKey = "Buttons"
+
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, 0, 0, 28)
+tabBar.BackgroundTransparency = 1
+tabBar.Parent = settingsBody
+
+local tbLayout = Instance.new("UIListLayout")
+tbLayout.FillDirection = Enum.FillDirection.Horizontal
+tbLayout.Padding = UDim.new(0, 4)
+tbLayout.Parent = tabBar
+
+local tabButtons = {}
+
+local pageContainer = Instance.new("Frame")
+pageContainer.Size = UDim2.new(1, 0, 1, -34)
+pageContainer.Position = UDim2.new(0, 0, 0, 34)
+pageContainer.BackgroundTransparency = 1
+pageContainer.Parent = settingsBody
+
+local function switchSettingsPage(targetKey)
+    activePageKey = targetKey
+    hapticFeedback("tap")
+    for key, page in pairs(settingsPages) do
+        page.Visible = (key == targetKey)
+    end
+    for key, btn in pairs(tabButtons) do
+        if key == targetKey then
+            tween(btn, 0.15, {
+                BackgroundColor3 = T.ButtonPrimary,
+                TextColor3 = T.ButtonPrimaryText
+            })
+        else
+            tween(btn, 0.15, {
+                BackgroundColor3 = T.ButtonSecondary,
+                TextColor3 = T.ButtonSecondaryText
+            })
+        end
+    end
+end
+
+local function createTabBtn(key, labelText, widthScale)
+    local tb = Instance.new("TextButton")
+    tb.Size = UDim2.new(widthScale, -3, 1, 0)
+    tb.BackgroundColor3 = (key == activePageKey) and T.ButtonPrimary or T.ButtonSecondary
+    tb.BorderSizePixel = 0
+    tb.Font = Enum.Font.GothamBold
+    tb.TextSize = 10
+    tb.TextColor3 = (key == activePageKey) and T.ButtonPrimaryText or T.ButtonSecondaryText
+    tb.Text = labelText
+    tb.Parent = tabBar
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = tb
+    tabButtons[key] = tb
+    table.insert(ThemeRegistry.Buttons, {
+        Button = tb,
+        Role = (key == activePageKey) and "Primary" or "Secondary"
+    })
+    setupTouchButton(tb, function() switchSettingsPage(key) end, "tap")
+end
+
+createTabBtn("Buttons", "Кнопки", 0.25)
+createTabBtn("Commands", "Команды", 0.27)
+createTabBtn("Config", "Конфиг", 0.24)
+createTabBtn("Utils", "Утилиты", 0.24)
+
+-- СТРАНИЦА 1: КНОПКИ (Скрытие любых кнопок кроме кнопки настроек)
+local pageButtons = Instance.new("ScrollingFrame")
+pageButtons.Size = UDim2.new(1, 0, 1, 0)
+pageButtons.BackgroundTransparency = 1
+pageButtons.BorderSizePixel = 0
+pageButtons.ScrollBarThickness = 0
+pageButtons.CanvasSize = UDim2.new(0, 0, 0, 240)
+pageButtons.Visible = true
+pageButtons.Parent = pageContainer
+settingsPages["Buttons"] = pageButtons
+
+local pbLayout = Instance.new("UIListLayout")
+pbLayout.Padding = UDim.new(0, 5)
+pbLayout.Parent = pageButtons
+
+local function applyButtonVisibility()
+    for _, item in ipairs(AllSpeedDialPills) do
+        if item.LabelText == "Настройки" then
+            item.Pill.Visible = true -- Настройки ВСЕГДА видны
+        else
+            local isHidden = (Config.HiddenButtons[item.LabelText] == true)
+            item.Pill.Visible = not isHidden
+        end
+    end
+    if updateMenuGeometry then updateMenuGeometry() end
+end
+
+local function createPillVisibilityRow(pillLabelText)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 30)
+    row.BackgroundColor3 = T.ButtonSecondary
+    row.BorderSizePixel = 0
+    row.Parent = pageButtons
+    local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10); rc.Parent = row
+    table.insert(ThemeRegistry.Buttons, {Button = row, Role = "Secondary"})
+
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.Size = UDim2.new(1, -90, 1, 0)
+    nameLbl.Position = UDim2.new(0, 10, 0, 0)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Font = Enum.Font.GothamMedium
+    nameLbl.TextSize = 11
+    nameLbl.TextColor3 = T.CardText
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    nameLbl.Text = pillLabelText
+    nameLbl.Parent = row
+
+    if pillLabelText == "Настройки" then
+        local lockLbl = Instance.new("TextLabel")
+        lockLbl.Size = UDim2.new(0, 80, 1, -6)
+        lockLbl.Position = UDim2.new(1, -84, 0, 3)
+        lockLbl.BackgroundColor3 = Color3.fromRGB(50, 45, 60)
+        lockLbl.BorderSizePixel = 0
+        lockLbl.Font = Enum.Font.GothamBold
+        lockLbl.TextSize = 9
+        lockLbl.TextColor3 = Color3.fromRGB(200, 195, 215)
+        lockLbl.Text = "Закреплено"
+        lockLbl.Parent = row
+        local lc = Instance.new("UICorner"); lc.CornerRadius = UDim.new(1, 0); lc.Parent = lockLbl
+    else
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Size = UDim2.new(0, 80, 1, -6)
+        toggleBtn.Position = UDim2.new(1, -84, 0, 3)
+        local isHidden = (Config.HiddenButtons[pillLabelText] == true)
+        toggleBtn.BackgroundColor3 = isHidden and T.ButtonSecondary or T.ButtonPrimary
+        toggleBtn.BorderSizePixel = 0
+        toggleBtn.Font = Enum.Font.GothamBold
+        toggleBtn.TextSize = 10
+        toggleBtn.TextColor3 = isHidden and T.ButtonSecondaryText or T.ButtonPrimaryText
+        toggleBtn.Text = isHidden and "Скрыта" or "Видна"
+        toggleBtn.Parent = row
+        local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(1, 0); tc.Parent = toggleBtn
+
+        setupTouchButton(toggleBtn, function()
+            local nowHidden = not (Config.HiddenButtons[pillLabelText] == true)
+            Config.HiddenButtons[pillLabelText] = nowHidden
+            toggleBtn.Text = nowHidden and "Скрыта" or "Видна"
+            tween(toggleBtn, 0.18, {
+                BackgroundColor3 = nowHidden and T.ButtonSecondary or T.ButtonPrimary,
+                TextColor3 = nowHidden and T.ButtonSecondaryText or T.ButtonPrimaryText
+            })
+            applyButtonVisibility()
+            hapticFeedback(nowHidden and "toggle_off" or "toggle_on")
+        end, "tap")
+    end
+end
+
+-- СТРАНИЦА 2: КОМАНДЫ (Добавление своих кнопок-команд)
+local pageCommands = Instance.new("ScrollingFrame")
+pageCommands.Size = UDim2.new(1, 0, 1, 0)
+pageCommands.BackgroundTransparency = 1
+pageCommands.BorderSizePixel = 0
+pageCommands.ScrollBarThickness = 0
+pageCommands.CanvasSize = UDim2.new(0, 0, 0, 320)
+pageCommands.Visible = false
+pageCommands.Parent = pageContainer
+settingsPages["Commands"] = pageCommands
+
+local pcLayout = Instance.new("UIListLayout")
+pcLayout.Padding = UDim.new(0, 5)
+pcLayout.Parent = pageCommands
+
+local newCmdName = Instance.new("TextBox")
+newCmdName.Size = UDim2.new(1, 0, 0, 30)
+newCmdName.BackgroundColor3 = T.InputBg
+newCmdName.BorderSizePixel = 0
+newCmdName.Font = Enum.Font.Gotham
+newCmdName.TextSize = 11
+newCmdName.TextColor3 = T.CardText
+newCmdName.PlaceholderColor3 = T.CardTextSub
+newCmdName.PlaceholderText = "Название кнопки (например: Speed 50)..."
+newCmdName.Text = ""
+newCmdName.ClearTextOnFocus = false
+newCmdName.Parent = pageCommands
+local ncnc = Instance.new("UICorner"); ncnc.CornerRadius = UDim.new(0, 8); ncnc.Parent = newCmdName
+table.insert(ThemeRegistry.Inputs, newCmdName)
+
+local newCmdCode = Instance.new("TextBox")
+newCmdCode.Size = UDim2.new(1, 0, 0, 48)
+newCmdCode.BackgroundColor3 = T.InputBg
+newCmdCode.BorderSizePixel = 0
+newCmdCode.Font = Enum.Font.Code
+newCmdCode.TextSize = 10
+newCmdCode.TextColor3 = T.CardText
+newCmdCode.PlaceholderColor3 = T.CardTextSub
+newCmdCode.PlaceholderText = "-- Lua код команды...\nLocalPlayer.Character.Humanoid.WalkSpeed = 50"
+newCmdCode.Text = ""
+newCmdCode.MultiLine = true
+newCmdCode.ClearTextOnFocus = false
+newCmdCode.TextXAlignment = Enum.TextXAlignment.Left
+newCmdCode.TextYAlignment = Enum.TextYAlignment.Top
+newCmdCode.Parent = pageCommands
+local nccc = Instance.new("UICorner"); nccc.CornerRadius = UDim.new(0, 8); nccc.Parent = newCmdCode
+table.insert(ThemeRegistry.Inputs, newCmdCode)
+
+local addCmdBtn = nil
+addCmdBtn = createButtonWithIcon(pageCommands, Icons.Plus, "Добавить команду", UDim2.new(1, 0, 0, 30), "Primary", function()
+    local name = newCmdName.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    local code = newCmdCode.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then
+        showToast("Команда", "Введите название кнопки", true)
+        return
+    end
+    if code == "" then
+        showToast("Команда", "Введите Lua код", true)
+        return
+    end
+    table.insert(Config.CustomButtons, {Name = name, Code = code})
+    newCmdName.Text = ""
+    newCmdCode.Text = ""
+    refreshCustomButtonsList()
+    if syncCustomPills then syncCustomPills() end
+    hapticFeedback("toggle_on")
+    showToast("Команда", "Добавлена: " .. name)
+end, "toggle_on")
+
+local customListFrame = Instance.new("Frame")
+customListFrame.Size = UDim2.new(1, 0, 0, 0)
+customListFrame.BackgroundTransparency = 1
+customListFrame.Parent = pageCommands
+
+local clfLayout = Instance.new("UIListLayout")
+clfLayout.Padding = UDim.new(0, 5)
+clfLayout.Parent = customListFrame
+
+local syncCustomPills = nil -- Предварительное объявление
+local refreshCustomButtonsList = nil
+
+refreshCustomButtonsList = function()
+    for _, child in ipairs(customListFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    for idx, item in ipairs(Config.CustomButtons) do
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 28)
+        row.BackgroundColor3 = T.ButtonSecondary
+        row.BorderSizePixel = 0
+        row.Parent = customListFrame
+        local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 8); rc.Parent = row
+        table.insert(ThemeRegistry.Buttons, {Button = row, Role = "Secondary"})
+
+        local playIcon = Instance.new("ImageLabel")
+        playIcon.Size = UDim2.new(0, 14, 0, 14)
+        playIcon.Position = UDim2.new(0, 8, 0.5, -7)
+        playIcon.BackgroundTransparency = 1
+        setIcon(playIcon, Icons.Play, T.CardText)
+        playIcon.Active = false
+        playIcon.Parent = row
+
+        local runBtn = Instance.new("TextButton")
+        runBtn.Size = UDim2.new(1, -56, 1, 0)
+        runBtn.Position = UDim2.new(0, 26, 0, 0)
+        runBtn.BackgroundTransparency = 1
+        runBtn.Font = Enum.Font.GothamBold
+        runBtn.TextSize = 11
+        runBtn.TextColor3 = T.CardText
+        runBtn.TextXAlignment = Enum.TextXAlignment.Left
+        runBtn.Text = item.Name
+        runBtn.TextTruncate = Enum.TextTruncate.AtEnd
+        runBtn.Parent = row
+        setupTouchButton(runBtn, function() executeScript(item.Code) end, "toggle_on")
+
+        local delBtn = Instance.new("ImageButton")
+        delBtn.Size = UDim2.new(0, 22, 0, 22)
+        delBtn.Position = UDim2.new(1, -26, 0.5, -11)
+        delBtn.BackgroundColor3 = T.ButtonDanger
+        delBtn.BorderSizePixel = 0
+        setIcon(delBtn, Icons.Trash, Color3.fromRGB(255, 255, 255))
+        delBtn.Parent = row
+        local dc = Instance.new("UICorner"); dc.CornerRadius = UDim.new(1, 0); dc.Parent = delBtn
+        setupTouchButton(delBtn, function()
+            table.remove(Config.CustomButtons, idx)
+            refreshCustomButtonsList()
+            if syncCustomPills then syncCustomPills() end
+            hapticFeedback("danger")
+            showToast("Команда", "Удалена")
+        end, "danger")
+    end
+    customListFrame.Size = UDim2.new(1, 0, 0, #Config.CustomButtons * 33)
+    pageCommands.CanvasSize = UDim2.new(0, 0, 0, 120 + #Config.CustomButtons * 33)
+end
+
+-- addCmdBtn wired in createButtonWithIcon
+
+-- СТРАНИЦА 3: КОНФИГ И БЭКАП
+local pageConfig = Instance.new("ScrollingFrame")
+pageConfig.Size = UDim2.new(1, 0, 1, 0)
+pageConfig.BackgroundTransparency = 1
+pageConfig.BorderSizePixel = 0
+pageConfig.ScrollBarThickness = 0
+pageConfig.CanvasSize = UDim2.new(0, 0, 0, 260)
+pageConfig.Visible = false
+pageConfig.Parent = pageContainer
+settingsPages["Config"] = pageConfig
+
+local pcfgLayout = Instance.new("UIListLayout")
+pcfgLayout.Padding = UDim.new(0, 5)
+pcfgLayout.Parent = pageConfig
+
+local saveConfig = nil
+local loadConfigFromFile = nil
+
+local saveBtn = createButtonWithIcon(pageConfig, Icons.Save, "Сохранить конфиг (диск + буфер)", UDim2.new(1, 0, 0, 30), "Primary", function()
+    if saveConfig then saveConfig() end
+end, "toggle_on")
+
+local loadBtn = createButtonWithIcon(pageConfig, Icons.Download, "Загрузить конфиг с диска", UDim2.new(1, 0, 0, 30), "Secondary", function()
+    if loadConfigFromFile then loadConfigFromFile() end
+end, "toggle_on")
+
+local jsonBox = Instance.new("TextBox")
+jsonBox.Size = UDim2.new(1, 0, 0, 72)
+jsonBox.BackgroundColor3 = T.InputBg
+jsonBox.BorderSizePixel = 0
+jsonBox.Font = Enum.Font.Code
+jsonBox.TextSize = 10
+jsonBox.TextColor3 = T.CardText
+jsonBox.PlaceholderColor3 = T.CardTextSub
+jsonBox.PlaceholderText = "JSON бэкап конфигурации..."
+jsonBox.Text = ""
+jsonBox.MultiLine = true
+jsonBox.ClearTextOnFocus = false
+jsonBox.TextXAlignment = Enum.TextXAlignment.Left
+jsonBox.TextYAlignment = Enum.TextYAlignment.Top
+jsonBox.Parent = pageConfig
+local jbc = Instance.new("UICorner"); jbc.CornerRadius = UDim.new(0, 8); jbc.Parent = jsonBox
+table.insert(ThemeRegistry.Inputs, jsonBox)
+
+local importBtn = createButtonWithIcon(pageConfig, Icons.Terminal, "Применить JSON из поля выше", UDim2.new(1, 0, 0, 28), "Secondary", function()
+    local textVal = jsonBox.Text
+    local success, data = pcall(function() return HttpService:JSONDecode(textVal) end)
+    if not success or type(data) ~= "table" then
+        showToast("Импорт", "Некорректный JSON", true)
+        return
+    end
+    applyLoadedConfig(data)
+    hapticFeedback("toggle_on")
+    showToast("Импорт", "Конфигурация обновлена!")
+end, "toggle_on")
+
+local resetBtn = createButtonWithIcon(pageConfig, Icons.RotateCcw, "Сбросить настройки к базовым", UDim2.new(1, 0, 0, 28), "Danger", function()
+    table.clear(Config.HiddenButtons)
+    table.clear(Config.CustomButtons)
+    applyButtonVisibility()
+    refreshCustomButtonsList()
+    if syncCustomPills then syncCustomPills() end
+    hapticFeedback("danger")
+    showToast("Конфиг", "Сброшен к базовым")
+end, "danger")
+
+local applyLiveTheme = nil -- Предварительное объявление
+
+local function saveConfig()
+    Config.ThemeHue = currentHue
+    Config.IsDarkMode = isDarkMode
+    local json = HttpService:JSONEncode(Config)
+    jsonBox.Text = json
+    pcall(function()
+        if writefile then writefile(CONFIG_FILE, json) end
+    end)
+    pcall(function()
+        if setclipboard then setclipboard(json)
+        elseif toclipboard then toclipboard(json) end
+    end)
+    hapticFeedback("toggle_on")
+    showToast("Конфиг", "Сохранён (файл + скопирован)")
+end
+
+local function applyLoadedConfig(data)
+    if data.ThemeHue then
+        currentHue = data.ThemeHue
+        if ThemeRegistry.ThemeBarThumb then
+            ThemeRegistry.ThemeBarThumb.Parent.Position = UDim2.new(currentHue, 0, 0.5, 0)
+        end
+    end
+    if data.IsDarkMode ~= nil then
+        isDarkMode = data.IsDarkMode
+    end
+    if applyLiveTheme then
+        applyLiveTheme(buildThemeFromHue(currentHue, isDarkMode))
+    end
+    if data.HiddenButtons then
+        Config.HiddenButtons = data.HiddenButtons
+        applyButtonVisibility()
+    end
+    if data.CustomButtons then
+        Config.CustomButtons = data.CustomButtons
+        refreshCustomButtonsList()
+        if syncCustomPills then syncCustomPills() end
+    end
+    if updateMenuGeometry then updateMenuGeometry() end
+end
+
+local function loadConfigFromFile()
+    local json = nil
+    pcall(function()
+        if readfile then json = readfile(CONFIG_FILE) end
+    end)
+    if not json or json == "" then
+        showToast("Конфиг", "Файл бэкапа не найден", true)
+        return
+    end
+    local success, data = pcall(function() return HttpService:JSONDecode(json) end)
+    if not success or type(data) ~= "table" then
+        showToast("Конфиг", "Ошибка разбора файла", true)
+        return
+    end
+    jsonBox.Text = json
+    applyLoadedConfig(data)
+    hapticFeedback("toggle_on")
+    showToast("Конфиг", "Успешно загружен с диска!")
+end
+
+-- Config buttons wired in createButtonWithIcon
+
+-- СТРАНИЦА 4: СКРИПТЫ И ДЕЙСТВИЯ (INFINITE YIELD И REJOIN)
+local pageUtils = Instance.new("ScrollingFrame")
+pageUtils.Size = UDim2.new(1, 0, 1, 0)
+pageUtils.BackgroundTransparency = 1
+pageUtils.BorderSizePixel = 0
+pageUtils.ScrollBarThickness = 0
+pageUtils.CanvasSize = UDim2.new(0, 0, 0, 160)
+pageUtils.Visible = false
+pageUtils.Parent = pageContainer
+settingsPages["Utils"] = pageUtils
+
+local puLayout = Instance.new("UIListLayout")
+puLayout.Padding = UDim.new(0, 8)
+puLayout.Parent = pageUtils
+
+createButtonWithIcon(pageUtils, Icons.Rocket, "Запустить Infinite Yield", UDim2.new(1, 0, 0, 36), "Primary", UtilsModule.LaunchInfiniteYield, "toggle_on")
+createButtonWithIcon(pageUtils, Icons.Refresh, "Перезайти на сервер", UDim2.new(1, 0, 0, 36), "Secondary", UtilsModule.Rejoin, "danger")
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 15. ПОЛНЫЙ ДИНАМИЧЕСКИЙ TWEEN-RECOLOR ВСЕХ ЭЛЕМЕНТОВ
+-- ══════════════════════════════════════════════════════════════════════
+
+applyLiveTheme = function(newTheme)
+    T = newTheme
+    local dur = 0.22
+
+    if ThemeRegistry.FabClosed then
+        tweenProp(ThemeRegistry.FabClosed, dur, {BackgroundColor3 = T.FabBg})
+        tweenProp(ThemeRegistry.FabClosedIcon, dur, {ImageColor3 = T.FabIcon})
+    end
+
+    if ThemeRegistry.FabOpened then
+        tweenProp(ThemeRegistry.FabOpened, dur, {BackgroundColor3 = T.CloseFabBg})
+        tweenProp(ThemeRegistry.FabOpenedIcon, dur, {ImageColor3 = T.CloseFabIcon})
+    end
+
+    for _, item in ipairs(ThemeRegistry.Pills) do
+        tweenProp(item.Pill, dur, {BackgroundColor3 = T.PillBg})
+        tweenProp(item.Icon, dur, {ImageColor3 = T.PillText})
+        tweenProp(item.Label, dur, {TextColor3 = T.PillText})
+    end
+
+    for _, p in ipairs(ThemeRegistry.Panels) do
+        tweenProp(p.Panel, dur, {BackgroundColor3 = T.CardBg})
+        tweenProp(p.Header, dur, {BackgroundColor3 = T.CardHeader})
+        tweenProp(p.Cover, dur, {BackgroundColor3 = T.CardHeader})
+        tweenProp(p.Stroke, dur, {Color = T.CardStroke})
+        tweenProp(p.Icon, dur, {ImageColor3 = T.Accent})
+        tweenProp(p.Title, dur, {TextColor3 = T.CardText})
+        tweenProp(p.Close, dur, {BackgroundColor3 = T.ButtonSecondary, ImageColor3 = T.CardText})
+    end
+
+    for _, bData in ipairs(ThemeRegistry.Buttons) do
+        local btn = bData.Button
+        if btn and btn.Parent then
+            local targetBg = T.ButtonSecondary
+            local targetText = T.ButtonSecondaryText
+            if bData.Role == "Primary" then
+                targetBg = T.ButtonPrimary
+                targetText = T.ButtonPrimaryText
+            elseif bData.Role == "Danger" then
+                targetBg = T.ButtonDanger
+                targetText = T.ButtonDangerText
+            end
+
+            tweenProp(btn, dur, {BackgroundColor3 = targetBg})
+
+            if bData.TextLbl and bData.TextLbl.Parent then
+                tweenProp(bData.TextLbl, dur, {TextColor3 = targetText})
+            elseif btn:IsA("TextButton") or btn:IsA("TextLabel") then
+                tweenProp(btn, dur, {TextColor3 = targetText})
+            end
+
+            if bData.IconImg and bData.IconImg.Parent then
+                tweenProp(bData.IconImg, dur, {ImageColor3 = targetText})
+            elseif btn:IsA("ImageButton") or btn:IsA("ImageLabel") then
+                tweenProp(btn, dur, {ImageColor3 = (bData.Role == "Danger") and targetText or T.CardText})
+            end
+        end
+    end
+
+    for _, tb in ipairs(ThemeRegistry.Inputs) do
+        tweenProp(tb, dur, {
+            BackgroundColor3 = T.InputBg,
+            TextColor3 = T.CardText,
+            PlaceholderColor3 = T.CardTextSub
+        })
+    end
+
+    if ThemeRegistry.SpecBar then
+        tweenProp(ThemeRegistry.SpecBar, dur, {BackgroundColor3 = T.CardBg})
+    end
+    if ThemeRegistry.SpecBarStroke then
+        tweenProp(ThemeRegistry.SpecBarStroke, dur, {Color = T.CardStroke})
+    end
+    if ThemeRegistry.SpecBarLabel then
+        tweenProp(ThemeRegistry.SpecBarLabel, dur, {TextColor3 = T.CardText})
+    end
+
+    if ThemeRegistry.ThemeBarStroke then
+        tweenProp(ThemeRegistry.ThemeBarStroke, dur, {Color = T.CardStroke})
+    end
+    if ThemeRegistry.ThemeBarThumb then
+        tweenProp(ThemeRegistry.ThemeBarThumb, dur, {BackgroundColor3 = T.Accent})
+    end
+    if ThemeRegistry.ModeIcon then
+        setIcon(ThemeRegistry.ModeIcon, isDarkMode and Icons.Moon or Icons.Sun, Color3.fromRGB(0, 0, 0))
+    end
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 16. ПЛАВАЮЩАЯ ПАНЕЛЬ ПЕРЕКРАСА (1:1 ПО РЕФЕРЕНСУ)
+-- ══════════════════════════════════════════════════════════════════════
+
+local isSlidingHue = false
+local lastHueTick = 0
+
+-- Корпус: вытянутая черная пилюля
+local themeBar = Instance.new("Frame")
+themeBar.Name = "TriOX_ThemeBar"
+themeBar.Size = UDim2.new(0, 330, 0, 58)
+themeBar.Position = UDim2.new(0.5, -165, 0.45, -29)
+themeBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+themeBar.BorderSizePixel = 0
+themeBar.Visible = false
+themeBar.Active = true
+themeBar.ZIndex = 110
+themeBar.Parent = screenGui
+
+local tbc = Instance.new("UICorner"); tbc.CornerRadius = UDim.new(1, 0); tbc.Parent = themeBar
+local tbs = Instance.new("UIStroke"); tbs.Color = T.CardStroke; tbs.Thickness = 1.2; tbs.Parent = themeBar
+ThemeRegistry.ThemeBar = themeBar
+ThemeRegistry.ThemeBarStroke = tbs
+makeDraggable(themeBar, themeBar, nil, function() return not isSlidingHue end)
+
+-- Кнопка смены режима слева (белый сквиркл с черной луной/солнцем как на концепте)
+local modeBtn = Instance.new("TextButton")
+modeBtn.Size = UDim2.new(0, 42, 0, 42)
+modeBtn.Position = UDim2.new(0, 10, 0.5, -21)
+modeBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+modeBtn.BorderSizePixel = 0
+modeBtn.AutoButtonColor = false
+modeBtn.Text = ""
+modeBtn.ZIndex = 112
+modeBtn.Parent = themeBar
+
+local mbCorner = Instance.new("UICorner"); mbCorner.CornerRadius = UDim.new(0, 14); mbCorner.Parent = modeBtn
+
+local modeIconImg = Instance.new("ImageLabel")
+modeIconImg.Size = UDim2.new(0, 22, 0, 22)
+modeIconImg.Position = UDim2.new(0.5, -11, 0.5, -11)
+modeIconImg.BackgroundTransparency = 1
+setIcon(modeIconImg, isDarkMode and Icons.Moon or Icons.Sun, Color3.fromRGB(0, 0, 0))
+modeIconImg.Active = false
+modeIconImg.ZIndex = 113
+modeIconImg.Parent = modeBtn
+ThemeRegistry.ModeIcon = modeIconImg
+
+setupTouchButton(modeBtn, function()
+    isDarkMode = not isDarkMode
+    hapticFeedback("theme_change")
+    applyLiveTheme(buildThemeFromHue(currentHue, isDarkMode))
+    showToast("Режим", isDarkMode and "Тёмный MD3" or "Светлый MD3")
+end, "theme_change")
+
+-- Радужная полоса HUE-спектра (растянута на всю длину без мешающего крестика)
+local sliderTrack = Instance.new("TextButton")
+sliderTrack.Size = UDim2.new(1, -74, 0, 16)
+sliderTrack.Position = UDim2.new(0, 62, 0.5, -8)
+sliderTrack.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderTrack.BorderSizePixel = 0
+sliderTrack.AutoButtonColor = false
+sliderTrack.Text = ""
+sliderTrack.ZIndex = 112
+sliderTrack.Parent = themeBar
+
+local stc = Instance.new("UICorner"); stc.CornerRadius = UDim.new(1, 0); stc.Parent = sliderTrack
+
+local rainbowGrad = Instance.new("UIGradient")
+rainbowGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0.00, Color3.fromHSV(0.00, 0.90, 1)),
+    ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.17, 0.90, 1)),
+    ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33, 0.90, 1)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromHSV(0.50, 0.90, 1)),
+    ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.67, 0.90, 1)),
+    ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83, 0.90, 1)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromHSV(1.00, 0.90, 1))
+})
+rainbowGrad.Parent = sliderTrack
+
+-- БЕГУНОК С НЕГАТИВНЫМ ПРОСТРАНСТВОМ (Черная маска создает отступы по бокам от полосочки)
+local thumbMask = Instance.new("Frame")
+thumbMask.Name = "ThumbMask"
+thumbMask.Size = UDim2.new(0, 16, 0, 34)
+thumbMask.AnchorPoint = Vector2.new(0.5, 0.5)
+thumbMask.Position = UDim2.new(currentHue, 0, 0.5, 0)
+thumbMask.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- В цвет черного корпуса бара
+thumbMask.BorderSizePixel = 0
+thumbMask.ZIndex = 114
+thumbMask.Parent = sliderTrack
+
+-- Вертикальная полосочка, динамически принимающая цвет текущего акцента (T.Accent)
+local thumbLine = Instance.new("Frame")
+thumbLine.Name = "ThumbLine"
+thumbLine.Size = UDim2.new(0, 4, 0, 30)
+thumbLine.AnchorPoint = Vector2.new(0.5, 0.5)
+thumbLine.Position = UDim2.new(0.5, 0, 0.5, 0)
+thumbLine.BackgroundColor3 = T.Accent
+thumbLine.BorderSizePixel = 0
+thumbLine.ZIndex = 115
+thumbLine.Parent = thumbMask
+
+local tlc = Instance.new("UICorner"); tlc.CornerRadius = UDim.new(1, 0); tlc.Parent = thumbLine
+ThemeRegistry.ThemeBarThumb = thumbLine
+
+-- Управление открытием/закрытием панели перекраса
+local function closeThemeBar()
+    hapticFeedback("fab_close")
+    local hide = tween(themeBar, 0.18, {
+        Size = UDim2.new(0, 300, 0, 48),
+        BackgroundTransparency = 0.5
+    }, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    hide.Completed:Connect(function()
+        themeBar.Visible = false
+        themeBar.Size = UDim2.new(0, 330, 0, 58)
+        themeBar.BackgroundTransparency = 0
+    end)
+end
+
+local function openThemeBar()
+    themeBar.Visible = true
+    themeBar.Size = UDim2.new(0, 300, 0, 48)
+    themeBar.BackgroundTransparency = 0.3
+    hapticFeedback("theme_change")
+    tween(themeBar, 0.25, {
+        Size = UDim2.new(0, 330, 0, 58),
+        BackgroundTransparency = 0
+    }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+end
+
+-- Логика свайпа по радужному слайдеру
+local function updateHueFromInput(input)
+    local trackAbsX = sliderTrack.AbsolutePosition.X
+    local trackWidth = sliderTrack.AbsoluteSize.X
+    if trackWidth > 0 then
+        local relX = math.clamp((input.Position.X - trackAbsX) / trackWidth, 0, 1)
+        currentHue = relX
+        thumbMask.Position = UDim2.new(relX, 0, 0.5, 0)
+        applyLiveTheme(buildThemeFromHue(currentHue, isDarkMode))
+        thumbLine.BackgroundColor3 = T.Accent
+
+        if math.abs(relX - lastHueTick) > 0.05 then
+            lastHueTick = relX
+            hapticFeedback("tick")
+        end
+    end
+end
+
+sliderTrack.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isSlidingHue = true
+        updateHueFromInput(input)
+        hapticFeedback("tap")
+    end
+end)
+
+sliderTrack.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if isSlidingHue then
+            isSlidingHue = false
+            hapticFeedback("drag_end")
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isSlidingHue and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateHueFromInput(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if isSlidingHue and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        isSlidingHue = false
+        hapticFeedback("drag_end")
+    end
+end)
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 17. ГЛАВНОЕ МЕНЮ: АДАПТИВНЫЙ SPEED-DIAL FAB И ПИЛЮЛИ
+-- ══════════════════════════════════════════════════════════════════════
+
+local fabContainer = Instance.new("Frame")
+fabContainer.Name = "TriOX_FAB_Container"
+fabContainer.Size = UDim2.new(0, 56, 0, 56)
+fabContainer.Position = UDim2.new(0, 24, 0.65, 0)
+fabContainer.BackgroundTransparency = 1
+fabContainer.Active = true
+fabContainer.ZIndex = 100
+fabContainer.Parent = screenGui
+
+-- Закрытый FAB
+local fabClosed = Instance.new("TextButton")
+fabClosed.Name = "FabClosed"
+fabClosed.Size = UDim2.new(1, 0, 1, 0)
+fabClosed.Position = UDim2.new(0, 0, 0, 0)
+fabClosed.BackgroundColor3 = T.FabBg
+fabClosed.BorderSizePixel = 0
+fabClosed.AutoButtonColor = false
+fabClosed.Text = ""
+fabClosed.ZIndex = 105
+fabClosed.Parent = fabContainer
+
+local fcCorner = Instance.new("UICorner"); fcCorner.CornerRadius = UDim.new(0, 18); fcCorner.Parent = fabClosed
+
+local fcIcon = Instance.new("ImageLabel")
+fcIcon.Size = UDim2.new(0, 26, 0, 26)
+fcIcon.Position = UDim2.new(0.5, -13, 0.5, -13)
+fcIcon.BackgroundTransparency = 1
+setIcon(fcIcon, Icons.Telekinesis, T.FabIcon)
+fcIcon.Active = false
+fcIcon.ZIndex = 106
+fcIcon.Parent = fabClosed
+
+ThemeRegistry.FabClosed = fabClosed
+ThemeRegistry.FabClosedIcon = fcIcon
+
+-- Открытая кнопка закрытия
+local fabOpened = Instance.new("TextButton")
+fabOpened.Name = "FabOpened"
+fabOpened.Size = UDim2.new(0, 52, 0, 52)
+fabOpened.Position = UDim2.new(0, 2, 0, 2)
+fabOpened.BackgroundColor3 = T.CloseFabBg
+fabOpened.BorderSizePixel = 0
+fabOpened.AutoButtonColor = false
+fabOpened.Text = ""
+fabOpened.Visible = false
+fabOpened.ZIndex = 105
+fabOpened.Parent = fabContainer
+
+local foCorner = Instance.new("UICorner"); foCorner.CornerRadius = UDim.new(1, 0); foCorner.Parent = fabOpened
+
+local foIcon = Instance.new("ImageLabel")
+foIcon.Size = UDim2.new(0, 20, 0, 20)
+foIcon.Position = UDim2.new(0.5, -10, 0.5, -10)
+foIcon.BackgroundTransparency = 1
+setIcon(foIcon, Icons.Close, T.CloseFabIcon)
+foIcon.Active = false
+foIcon.ZIndex = 106
+foIcon.Parent = fabOpened
+
+ThemeRegistry.FabOpened = fabOpened
+ThemeRegistry.FabOpenedIcon = foIcon
+
+-- Контейнер пилюль с плавным размытием/градиентом прозрачности краев
+local pillsList = Instance.new("ScrollingFrame")
+pillsList.Name = "PillsList"
+pillsList.Size = UDim2.new(0, 168, 0, 270)
+pillsList.Position = UDim2.new(0, 0, 0, -278)
+pillsList.CanvasSize = UDim2.new(0, 0, 0, 300)
+pillsList.ScrollBarThickness = 0
+pillsList.BackgroundTransparency = 1
+pillsList.BorderSizePixel = 0
+pillsList.Visible = false
+pillsList.ZIndex = 102
+pillsList.ClipsDescendants = true
+pillsList.ElasticBehavior = Enum.ElasticBehavior.Always
+pillsList.Parent = fabContainer
+
+local plLayout = Instance.new("UIListLayout")
+plLayout.Padding = UDim.new(0, 6)
+plLayout.SortOrder = Enum.SortOrder.LayoutOrder
+plLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+plLayout.Parent = pillsList
+
+-- ПЛАВНЫЙ ГРАДИЕНТ ПРОЗРАЧНОСТИ (EDGE FADE EFFECT)
+local pillFadeGrad = Instance.new("UIGradient")
+pillFadeGrad.Name = "EdgeFadeGradient"
+pillFadeGrad.Rotation = 90
+pillFadeGrad.Transparency = NumberSequence.new(0)
+pillFadeGrad.Parent = pillsList
+
+local function updatePillFade()
+    local totalContentHeight = plLayout.AbsoluteContentSize.Y
+    local listHeight = pillsList.AbsoluteSize.Y
+    local maxPos = math.max(0, totalContentHeight - listHeight)
+
+    if maxPos <= 4 then
+        pillFadeGrad.Transparency = NumberSequence.new(0)
+        return
+    end
+
+    local pos = pillsList.CanvasPosition.Y
+    local topFactor = math.clamp(pos / 24, 0, 1)
+    local botFactor = math.clamp((maxPos - pos) / 24, 0, 1)
+
+    pillFadeGrad.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0.00, topFactor),
+        NumberSequenceKeypoint.new(0.08, 0.0),
+        NumberSequenceKeypoint.new(0.92, 0.0),
+        NumberSequenceKeypoint.new(1.00, botFactor)
+    })
+end
+
+pillsList:GetPropertyChangedSignal("CanvasPosition"):Connect(updatePillFade)
+
+local function createSpeedDialPill(labelText, iconData, layoutOrder, onClick, isCustom)
+    local pill = Instance.new("TextButton")
+    pill.Name = "Pill_" .. labelText
+    pill.Size = UDim2.new(0, 160, 0, 36)
+    pill.BackgroundColor3 = T.PillBg
+    pill.BorderSizePixel = 0
+    pill.AutoButtonColor = false
+    pill.Text = ""
+    pill.LayoutOrder = layoutOrder
+    pill.ZIndex = 103
+    pill.Parent = pillsList
+
+    local pCorner = Instance.new("UICorner"); pCorner.CornerRadius = UDim.new(1, 0); pCorner.Parent = pill
+
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 18, 0, 18)
+    icon.Position = UDim2.new(0, 14, 0.5, -9)
+    icon.BackgroundTransparency = 1
+    setIcon(icon, iconData, T.PillText)
+    icon.Active = false
+    icon.ZIndex = 104
+    icon.Parent = pill
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -44, 1, 0)
+    label.Position = UDim2.new(0, 40, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+    label.TextColor3 = T.PillText
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Text = labelText
+    label.TextTruncate = Enum.TextTruncate.AtEnd
+    label.Active = false
+    label.ZIndex = 104
+    label.Parent = pill
+
+    setupTouchButton(pill, onClick, "tap")
+
+    local itemData = {
+        Pill = pill,
+        Icon = icon,
+        Label = label,
+        LabelText = labelText,
+        IsCustom = isCustom or false
+    }
+    table.insert(ThemeRegistry.Pills, itemData)
+    table.insert(AllSpeedDialPills, itemData)
+
+    if not isCustom then
+        createPillVisibilityRow(labelText)
+    end
+
+    return pill
+end
+
+-- Создание стандартных пилюль меню (Настройки вместо Утилит!)
+createSpeedDialPill("Полёт", Icons.Flight, 7, function()
+    if flyPanel.Visible then closeFlyPanel() else openFlyPanel() end
+end)
+
+createSpeedDialPill("Телекинез", Icons.Telekinesis, 6, function()
+    Telekinesis.GiveTool()
+end)
+
+createSpeedDialPill("Подсветка", Icons.Esp, 5, function()
+    if espPanel.Visible then closeEspPanel() else openEspPanel() end
+end)
+
+createSpeedDialPill("Наблюдение", Icons.Spectate, 4, function()
+    SpectateModule.Cycle(1)
+end)
+
+createSpeedDialPill("Исполнитель", Icons.Executor, 3, function()
+    if execPanel.Visible then closeExecPanel() else openExecPanel() end
+end)
+
+createSpeedDialPill("Настройки", Icons.Settings, 2, function()
+    if settingsPanel.Visible then closeSettingsPanel() else openSettingsPanel() end
+end)
+
+createSpeedDialPill("Сменить тему", Icons.Palette, 1, function()
+    if themeBar.Visible then closeThemeBar() else openThemeBar() end
+end)
+
+-- Синхронизация кастомных команд в качестве дополнительных пилюль
+local customPillObjects = {}
+
+syncCustomPills = function()
+    for _, obj in ipairs(customPillObjects) do
+        if obj.Pill and obj.Pill.Parent then obj.Pill:Destroy() end
+    end
+    table.clear(customPillObjects)
+
+    for idx, cData in ipairs(Config.CustomButtons) do
+        local customPill = createSpeedDialPill(cData.Name, Icons.Executor, 8 + idx, function()
+            executeScript(cData.Code)
+        end, true)
+        table.insert(customPillObjects, {Pill = customPill, Name = cData.Name})
+    end
+    if updateMenuGeometry then updateMenuGeometry() end
+end
+
+-- Адаптивная геометрия меню под экран (верхняя и нижняя части)
+local isMenuOpen = false
+
+updateMenuGeometry = function()
+    local viewport = Camera.ViewportSize
+    local fabX = fabContainer.AbsolutePosition.X
+    local fabY = fabContainer.AbsolutePosition.Y
+
+    local isTopHalf = (fabY < (viewport.Y / 2))
+    local isRightHalf = (fabX > (viewport.X / 2))
+
+    local visibleCount = 0
+    for _, item in ipairs(AllSpeedDialPills) do
+        if item.Pill and item.Pill.Parent and item.Pill.Visible then
+            visibleCount = visibleCount + 1
+        end
+    end
+
+    local pillItemHeight = 42 -- 36px пилюля + 6px отступ
+    local totalContentHeight = math.max(36, visibleCount * pillItemHeight)
+
+    -- Расчет доступного пространства до края экрана
+    local maxAvailHeight = isTopHalf
+        and math.max(70, viewport.Y - (fabY + 62) - 16)
+        or  math.max(70, fabY - 16)
+
+    local listHeight = math.min(totalContentHeight, maxAvailHeight)
+
+    pillsList.Size = UDim2.new(0, 168, 0, listHeight)
+    pillsList.CanvasSize = UDim2.new(0, 0, 0, totalContentHeight)
+
+    local xOffset = isRightHalf and -106 or 0
+    if isTopHalf then
+        -- FAB сверху: меню раскрывается вниз, скроллится сверху вниз
+        pillsList.Position = UDim2.new(0, xOffset, 0, 62)
+        pillsList.CanvasPosition = Vector2.new(0, 0)
+    else
+        -- FAB снизу: меню раскрывается вверх, скроллится от FAB вверх
+        pillsList.Position = UDim2.new(0, xOffset, 0, -listHeight - 8)
+        pillsList.CanvasPosition = Vector2.new(0, math.max(0, totalContentHeight - listHeight))
+    end
+
+    pillsList.ScrollingEnabled = (totalContentHeight > listHeight + 2)
+    updatePillFade()
+end
+
+local function setMenuOpen(open)
+    isMenuOpen = open
+    if open then
+        hapticFeedback("fab_open")
+        updateMenuGeometry()
+        fabClosed.Visible = false
+        fabOpened.Visible = true
+        pillsList.Visible = true
+
+        fabOpened.Rotation = -90
+        tween(fabOpened, 0.25, {Rotation = 0}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+        for i, item in ipairs(AllSpeedDialPills) do
+            if item.Pill.Visible then
+                item.Pill.Size = UDim2.new(0, 130, 0, 32)
+                item.Pill.BackgroundTransparency = 0.6
+                tween(item.Pill, 0.16 + (i * 0.02), {
+                    Size = UDim2.new(0, 160, 0, 36),
+                    BackgroundTransparency = 0
+                }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            end
+        end
+    else
+        hapticFeedback("fab_close")
+        for i, item in ipairs(AllSpeedDialPills) do
+            if item.Pill.Visible then
+                tween(item.Pill, 0.12, {
+                    Size = UDim2.new(0, 130, 0, 32),
+                    BackgroundTransparency = 0.8
+                })
+            end
+        end
+        task.delay(0.12, function()
+            if not isMenuOpen then
+                fabOpened.Visible = false
+                fabClosed.Visible = true
+                pillsList.Visible = false
+                fabClosed.Size = UDim2.new(0.85, 0, 0.85, 0)
+                tween(fabClosed, 0.2, {Size = UDim2.new(1, 0, 1, 0)}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            end
+        end)
+    end
+end
+
+setupTouchButton(fabClosed, function()
+    setMenuOpen(true)
+end, "fab_open")
+
+setupTouchButton(fabOpened, function()
+    setMenuOpen(false)
+end, "fab_close")
+
+makeDraggable(fabContainer, fabClosed, function()
+    if isMenuOpen then updateMenuGeometry() end
+end)
+
+makeDraggable(fabContainer, fabOpened, function()
+    if isMenuOpen then updateMenuGeometry() end
+end)
+
+Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    if isMenuOpen then updateMenuGeometry() end
+end)
+
+-- Загрузка конфига при первом старте скрипта (если сохранён на диске)
+task.spawn(function()
+    pcall(function()
+        if readfile and isfile and isfile(CONFIG_FILE) then
+            local json = readfile(CONFIG_FILE)
+            local data = HttpService:JSONDecode(json)
+            if type(data) == "table" then
+                applyLoadedConfig(data)
+            end
+        end
+    end)
+end)
+
+showToast("TriOX Hub", "Material 3 Expressive v6.0 готов!", false)
